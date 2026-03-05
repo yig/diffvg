@@ -1,0 +1,12 @@
+torch
+torchvision
+numpy
+scikit-image
+svgwrite
+svgpathtools
+cssutils
+numba
+torch-tools
+git+https://github.com/Jayantparashar10/visdom@fix/pkg-resources-python312
+matplotlib
+seaborn
