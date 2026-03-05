@@ -118,7 +118,7 @@ elseif(APPLE)
     set_target_properties(diffvg PROPERTIES INSTALL_RPATH "@loader_path")
 endif()
 
-set_property(TARGET diffvg PROPERTY CXX_STANDARD 11)
+set_property(TARGET diffvg PROPERTY CXX_STANDARD 17)
 set_target_properties(diffvg PROPERTIES PREFIX "")
 # Still enable assertion in release mode
 string( REPLACE "/DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")

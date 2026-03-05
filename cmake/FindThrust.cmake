@@ -30,10 +30,17 @@ find_path(THRUST_INCLUDE_DIR
 	      /usr/local/include
 	      /usr/local/cuda/include
 	      ${CUDA_INCLUDE_DIRS}
-	      ./thrust
-	      ../thrust
+	      ./thrust/thrust
+	      ../thrust/thrust
 	NAMES thrust/version.h
 )
+
+set(__THRUST_INCLUDE_DIR "${THRUST_INCLUDE_DIR}")
+set(THRUST_INCLUDE_DIR
+    "${__THRUST_INCLUDE_DIR}"
+    "${__THRUST_INCLUDE_DIR}/../libcudacxx/include"
+)
+unset(__THRUST_INCLUDE_DIR)
 
 if (THRUST_INCLUDE_DIR)
   set(THRUST_FOUND TRUE)
