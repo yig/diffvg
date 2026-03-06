@@ -16,71 +16,31 @@ diffvg is a differentiable rasterizer for 2D vector graphics. See the webpage fo
 ![circle_outline](https://user-images.githubusercontent.com/951021/65125594-84f7a280-d9aa-11e9-8bc4-669fd2eff2f4.gif)
 ![ellipse_transform](https://user-images.githubusercontent.com/951021/67149013-06b54700-f25b-11e9-91eb-a61171c6d4a4.gif)
 
-# Install using pip
+# Install
 
 ```
-git submodule update --init --recursive
-pip install -r requirements.txt
-python setup.py install
+pip install "git+https://github.com/yig/diffvg"
 ```
 
-# Install using conda
-```
-git submodule update --init --recursive
-conda install -y pytorch torchvision -c pytorch
-conda install -y numpy
-conda install -y scikit-image
-conda install -y -c anaconda cmake
-conda install -y -c conda-forge ffmpeg
-pip install svgwrite
-pip install svgpathtools
-pip install cssutils
-pip install numba
-pip install torch-tools
-pip install visdom
-python setup.py install
-```
-# Install using poetry
+You can also check it out and run `pip install .`
 
-## prerequisite
-install python 3.7, poetry and ffmpeg
+CMake will auto-detect CUDA support support via `find_package(CUDA)`. You can override this by setting the environment variable `DIFFVG_CUDA`.
 
-```
-# install poetry (mac, linux)
-curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
-
-# install ffmpeg
+The demo scripts call `ffmpeg` on the command line to create movies from the optimization frames. You can install ffmpeg via:
 
 (macos)
+```
 brew install ffmpeg
+```
 
 (linux)
+```
 sudo apt install ffmpeg
+```
 
-or use conda
+(conda)
+```
 conda install -y -c conda-forge ffmpeg
-```
-
-## Install python packages
-
-```
-# install all python dependencies
-poetry install
-
-# install pydiffvg
-poetry run python setup.py install
-```
-
-Now to run the apps, just add `poetry run` before each of the commands below, e.g.
-
-```
-poetry run python single_circle.py
-```
-
-# Building in debug mode
-
-```
-python setup.py build --debug install
 ```
 
 # Run
