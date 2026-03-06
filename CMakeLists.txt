@@ -2,15 +2,18 @@ cmake_minimum_required(VERSION 3.15...4.2)
 
 project(diffvg VERSION 0.0.1 DESCRIPTION "Differentiable Vector Graphics")
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if(WIN32)
-    find_package(Python 3.6 COMPONENTS Development REQUIRED)
-else()
-    find_package(Python 3.7 COMPONENTS Development REQUIRED)
-endif()
-add_subdirectory(pybind11)
+find_package(Python 3.7 COMPONENTS Development REQUIRED)
+
+include(FetchContent)
+FetchContent_Declare(
+  pybind11
+  GIT_REPOSITORY https://github.com/pybind/pybind11
+  GIT_TAG        v3.0.2
+  GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(pybind11)
 
 # Auto-detect CUDA if not explicitly set via env var
 if(DEFINED ENV{DIFFVG_CUDA})
@@ -38,21 +41,17 @@ if(DIFFVG_CUDA)
         #set(CUDA_NVCC_FLAGS_DEBUG "-g -G")
     endif()
 else()
-    message(STATUS "Build without CUDA support")
-    find_package(Thrust REQUIRED)
+    FetchContent_Declare(
+      thrust
+      GIT_REPOSITORY https://github.com/NVIDIA/cccl
+      GIT_TAG        v3.3.0
+      GIT_SHALLOW    TRUE
+    )
+    FetchContent_MakeAvailable(thrust)
 endif()
 
-# include_directories(${CMAKE_SOURCE_DIR}/pybind11/include)
-include_directories(${PYTHON_INCLUDE_PATH})
-find_package(PythonLibs REQUIRED)
 include_directories(${PYTHON_INCLUDE_PATH})
 include_directories(${PYTHON_INCLUDE_DIRS})
-include_directories(pybind11/include)
-if(DIFFVG_CUDA)
-    link_directories(${CUDA_LIBRARIES})
-else()
-    include_directories(${THRUST_INCLUDE_DIR})
-endif()
 
 if(NOT MSVC)
   # These compile definitions are not meaningful for MSVC
@@ -103,6 +102,15 @@ else()
     add_library(diffvg MODULE ${SRCS})
 endif()
 
+target_link_libraries(diffvg PUBLIC pybind11::module)
+
+if(DIFFVG_CUDA)
+    link_directories(${CUDA_LIBRARIES})
+else()
+    target_include_directories(diffvg PRIVATE "${thrust_SOURCE_DIR}/thrust")
+    target_include_directories(diffvg PRIVATE "${thrust_SOURCE_DIR}/libcudacxx/include")
+endif()
+
 if(APPLE)
     # The "-undefined dynamic_lookup" is a hack for systems with
     # multiple Python installed. If we link a particular Python version
@@ -115,11 +123,10 @@ if(APPLE)
     set(DYNAMIC_LOOKUP "-undefined dynamic_lookup")
 endif()
 
-target_link_libraries(diffvg ${DYNAMIC_LOOKUP})
+target_link_options(diffvg PUBLIC ${DYNAMIC_LOOKUP})
 
 if(WIN32)
     # See: https://pybind11.readthedocs.io/en/master/compiling.html#advanced-interface-library-target
-    target_link_libraries(diffvg pybind11::module)
     set_target_properties(diffvg PROPERTIES PREFIX "${PYTHON_MODULE_PREFIX}"
                                             SUFFIX "${PYTHON_MODULE_EXTENSION}")
 endif()
