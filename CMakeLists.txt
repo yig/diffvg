@@ -4,7 +4,7 @@ project(diffvg VERSION 0.0.1 DESCRIPTION "Differentiable Vector Graphics")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(Python 3.7 COMPONENTS Development REQUIRED)
+find_package(Python 3.7 COMPONENTS Development.Module REQUIRED)
 
 include(FetchContent)
 FetchContent_Declare(
