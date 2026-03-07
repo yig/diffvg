@@ -33,7 +33,7 @@ class RenderFunction(torch.autograd.Function):
                         eval_positions=torch.tensor([])):
         """Convert shapes/groups to a flat argument list for PyTorch autograd."""
         if filter is None:
-            filter = pydiffvg.PixelFilter(type=torch_render.FilterType.BOX,
+            filter = pydiffvg.PixelFilter(type=torch_render.FilterType.box,
                                           radius=torch.tensor(0.5))
 
         num_shapes = len(shapes)
@@ -50,15 +50,15 @@ class RenderFunction(torch.autograd.Function):
         for shape in shapes:
             use_thickness = False
             if isinstance(shape, pydiffvg.Circle):
-                args.append(torch_render.ShapeType.CIRCLE)
+                args.append(torch_render.ShapeType.circle)
                 args.append(shape.radius if isinstance(shape.radius, torch.Tensor) else torch.tensor(float(shape.radius)))
                 args.append(shape.center)
             elif isinstance(shape, pydiffvg.Ellipse):
-                args.append(torch_render.ShapeType.ELLIPSE)
+                args.append(torch_render.ShapeType.ellipse)
                 args.append(shape.radius)
                 args.append(shape.center)
             elif isinstance(shape, pydiffvg.Path):
-                args.append(torch_render.ShapeType.PATH)
+                args.append(torch_render.ShapeType.path)
                 args.append(shape.num_control_points.to(torch.int32))
                 args.append(shape.points)
                 if len(shape.stroke_width.shape) > 0 and shape.stroke_width.shape[0] > 1:
@@ -69,7 +69,7 @@ class RenderFunction(torch.autograd.Function):
                 args.append(shape.is_closed)
                 args.append(getattr(shape, 'use_distance_approx', False))
             elif isinstance(shape, pydiffvg.Polygon):
-                args.append(torch_render.ShapeType.PATH)
+                args.append(torch_render.ShapeType.path)
                 if shape.is_closed:
                     args.append(torch.zeros(shape.points.shape[0], dtype=torch.int32))
                 else:
@@ -79,7 +79,7 @@ class RenderFunction(torch.autograd.Function):
                 args.append(shape.is_closed)
                 args.append(False)
             elif isinstance(shape, pydiffvg.Rect):
-                args.append(torch_render.ShapeType.RECT)
+                args.append(torch_render.ShapeType.rect)
                 args.append(shape.p_min)
                 args.append(shape.p_max)
             else:
@@ -96,16 +96,16 @@ class RenderFunction(torch.autograd.Function):
             if shape_group.fill_color is None:
                 args.append(None)
             elif isinstance(shape_group.fill_color, torch.Tensor):
-                args.append(torch_render.ColorType.CONSTANT)
+                args.append(torch_render.ColorType.constant)
                 args.append(shape_group.fill_color)
             elif isinstance(shape_group.fill_color, pydiffvg.LinearGradient):
-                args.append(torch_render.ColorType.LINEAR_GRADIENT)
+                args.append(torch_render.ColorType.linear_gradient)
                 args.append(shape_group.fill_color.begin)
                 args.append(shape_group.fill_color.end)
                 args.append(shape_group.fill_color.offsets)
                 args.append(shape_group.fill_color.stop_colors)
             elif isinstance(shape_group.fill_color, pydiffvg.RadialGradient):
-                args.append(torch_render.ColorType.RADIAL_GRADIENT)
+                args.append(torch_render.ColorType.radial_gradient)
                 args.append(shape_group.fill_color.center)
                 args.append(shape_group.fill_color.radius)
                 args.append(shape_group.fill_color.offsets)
@@ -122,16 +122,16 @@ class RenderFunction(torch.autograd.Function):
             if shape_group.stroke_color is None:
                 args.append(None)
             elif isinstance(shape_group.stroke_color, torch.Tensor):
-                args.append(torch_render.ColorType.CONSTANT)
+                args.append(torch_render.ColorType.constant)
                 args.append(shape_group.stroke_color)
             elif isinstance(shape_group.stroke_color, pydiffvg.LinearGradient):
-                args.append(torch_render.ColorType.LINEAR_GRADIENT)
+                args.append(torch_render.ColorType.linear_gradient)
                 args.append(shape_group.stroke_color.begin)
                 args.append(shape_group.stroke_color.end)
                 args.append(shape_group.stroke_color.offsets)
                 args.append(shape_group.stroke_color.stop_colors)
             elif isinstance(shape_group.stroke_color, pydiffvg.RadialGradient):
-                args.append(torch_render.ColorType.RADIAL_GRADIENT)
+                args.append(torch_render.ColorType.radial_gradient)
                 args.append(shape_group.stroke_color.center)
                 args.append(shape_group.stroke_color.radius)
                 args.append(shape_group.stroke_color.offsets)
@@ -165,21 +165,21 @@ class RenderFunction(torch.autograd.Function):
         for shape_id in range(num_shapes):
             shape_type = args[current_index]; current_index += 1
 
-            if shape_type == torch_render.ShapeType.CIRCLE:
+            if shape_type == torch_render.ShapeType.circle:
                 radius = args[current_index]; current_index += 1
                 center = args[current_index]; current_index += 1
                 r = radius.to(device) if isinstance(radius, torch.Tensor) else torch.tensor(float(radius), device=device)
                 c = center.to(device)
                 data = {'center': c, 'radius': r}
                 tensor_args.extend([r, c])
-            elif shape_type == torch_render.ShapeType.ELLIPSE:
+            elif shape_type == torch_render.ShapeType.ellipse:
                 radius = args[current_index]; current_index += 1
                 center = args[current_index]; current_index += 1
                 r = radius.to(device)
                 c = center.to(device)
                 data = {'center': c, 'radius': r}
                 tensor_args.extend([r, c])
-            elif shape_type == torch_render.ShapeType.PATH:
+            elif shape_type == torch_render.ShapeType.path:
                 num_control_points = args[current_index]; current_index += 1
                 points = args[current_index]; current_index += 1
                 thickness = args[current_index]; current_index += 1
@@ -196,7 +196,7 @@ class RenderFunction(torch.autograd.Function):
                     data['thickness'] = thickness.to(device)
                     tensor_args.append(thickness.to(device))
                 tensor_args.append(p)
-            elif shape_type == torch_render.ShapeType.RECT:
+            elif shape_type == torch_render.ShapeType.rect:
                 p_min = args[current_index]; current_index += 1
                 p_max = args[current_index]; current_index += 1
                 pm = p_min.to(device)
@@ -221,17 +221,17 @@ class RenderFunction(torch.autograd.Function):
             }
 
             fill_color_type = args[current_index]; current_index += 1
-            if fill_color_type == torch_render.ColorType.CONSTANT:
+            if fill_color_type == torch_render.ColorType.constant:
                 color = args[current_index]; current_index += 1
-                group['fill_color_type'] = torch_render.ColorType.CONSTANT
+                group['fill_color_type'] = torch_render.ColorType.constant
                 group['fill_color_data'] = color.to(device)
                 tensor_args.append(color.to(device))
-            elif fill_color_type == torch_render.ColorType.LINEAR_GRADIENT:
+            elif fill_color_type == torch_render.ColorType.linear_gradient:
                 begin = args[current_index]; current_index += 1
                 end = args[current_index]; current_index += 1
                 offsets = args[current_index]; current_index += 1
                 stop_colors = args[current_index]; current_index += 1
-                group['fill_color_type'] = torch_render.ColorType.LINEAR_GRADIENT
+                group['fill_color_type'] = torch_render.ColorType.linear_gradient
                 group['fill_color_data'] = {
                     'begin': begin.to(device),
                     'end': end.to(device),
@@ -240,12 +240,12 @@ class RenderFunction(torch.autograd.Function):
                 }
                 tensor_args.extend([begin.to(device), end.to(device),
                                    offsets.to(device), stop_colors.to(device)])
-            elif fill_color_type == torch_render.ColorType.RADIAL_GRADIENT:
+            elif fill_color_type == torch_render.ColorType.radial_gradient:
                 center = args[current_index]; current_index += 1
                 radius = args[current_index]; current_index += 1
                 offsets = args[current_index]; current_index += 1
                 stop_colors = args[current_index]; current_index += 1
-                group['fill_color_type'] = torch_render.ColorType.RADIAL_GRADIENT
+                group['fill_color_type'] = torch_render.ColorType.radial_gradient
                 group['fill_color_data'] = {
                     'center': center.to(device),
                     'radius': radius.to(device),
@@ -261,17 +261,17 @@ class RenderFunction(torch.autograd.Function):
                 assert False
 
             stroke_color_type = args[current_index]; current_index += 1
-            if stroke_color_type == torch_render.ColorType.CONSTANT:
+            if stroke_color_type == torch_render.ColorType.constant:
                 color = args[current_index]; current_index += 1
-                group['stroke_color_type'] = torch_render.ColorType.CONSTANT
+                group['stroke_color_type'] = torch_render.ColorType.constant
                 group['stroke_color_data'] = color.to(device)
                 tensor_args.append(color.to(device))
-            elif stroke_color_type == torch_render.ColorType.LINEAR_GRADIENT:
+            elif stroke_color_type == torch_render.ColorType.linear_gradient:
                 begin = args[current_index]; current_index += 1
                 end = args[current_index]; current_index += 1
                 offsets = args[current_index]; current_index += 1
                 stop_colors = args[current_index]; current_index += 1
-                group['stroke_color_type'] = torch_render.ColorType.LINEAR_GRADIENT
+                group['stroke_color_type'] = torch_render.ColorType.linear_gradient
                 group['stroke_color_data'] = {
                     'begin': begin.to(device),
                     'end': end.to(device),
@@ -280,12 +280,12 @@ class RenderFunction(torch.autograd.Function):
                 }
                 tensor_args.extend([begin.to(device), end.to(device),
                                    offsets.to(device), stop_colors.to(device)])
-            elif stroke_color_type == torch_render.ColorType.RADIAL_GRADIENT:
+            elif stroke_color_type == torch_render.ColorType.radial_gradient:
                 center = args[current_index]; current_index += 1
                 radius = args[current_index]; current_index += 1
                 offsets = args[current_index]; current_index += 1
                 stop_colors = args[current_index]; current_index += 1
-                group['stroke_color_type'] = torch_render.ColorType.RADIAL_GRADIENT
+                group['stroke_color_type'] = torch_render.ColorType.radial_gradient
                 group['stroke_color_data'] = {
                     'center': center.to(device),
                     'radius': radius.to(device),
@@ -399,21 +399,21 @@ class RenderFunction(torch.autograd.Function):
             arg_idx += 1  # shape_type
             new_data = {}
 
-            if shape_type == torch_render.ShapeType.CIRCLE:
+            if shape_type == torch_render.ShapeType.circle:
                 r = make_leaf(shape_data['radius'])
                 c = make_leaf(shape_data['center'])
                 leaf_tensors.extend([r, c])
                 arg_index_for_leaf.extend([arg_idx, arg_idx + 1])
                 new_data = {'center': c, 'radius': r}
                 arg_idx += 2
-            elif shape_type == torch_render.ShapeType.ELLIPSE:
+            elif shape_type == torch_render.ShapeType.ellipse:
                 r = make_leaf(shape_data['radius'])
                 c = make_leaf(shape_data['center'])
                 leaf_tensors.extend([r, c])
                 arg_index_for_leaf.extend([arg_idx, arg_idx + 1])
                 new_data = {'center': c, 'radius': r}
                 arg_idx += 2
-            elif shape_type == torch_render.ShapeType.PATH:
+            elif shape_type == torch_render.ShapeType.path:
                 arg_idx += 1  # num_control_points
                 p = make_leaf(shape_data['points'])
                 leaf_tensors.append(p)
@@ -434,7 +434,7 @@ class RenderFunction(torch.autograd.Function):
                 arg_idx += 1  # thickness (or None)
                 arg_idx += 1  # is_closed
                 arg_idx += 1  # use_distance_approx
-            elif shape_type == torch_render.ShapeType.RECT:
+            elif shape_type == torch_render.ShapeType.rect:
                 pm = make_leaf(shape_data['p_min'])
                 px = make_leaf(shape_data['p_max'])
                 leaf_tensors.extend([pm, px])
@@ -461,14 +461,14 @@ class RenderFunction(torch.autograd.Function):
             # Fill color
             fct = sg.get('fill_color_type')
             arg_idx += 1  # fill_color_type
-            if fct == torch_render.ColorType.CONSTANT:
+            if fct == torch_render.ColorType.constant:
                 fc = make_leaf(sg['fill_color_data'])
                 leaf_tensors.append(fc)
                 arg_index_for_leaf.append(arg_idx)
                 new_sg['fill_color_type'] = fct
                 new_sg['fill_color_data'] = fc
                 arg_idx += 1
-            elif fct == torch_render.ColorType.LINEAR_GRADIENT:
+            elif fct == torch_render.ColorType.linear_gradient:
                 fcd = sg['fill_color_data']
                 b = make_leaf(fcd['begin']); e = make_leaf(fcd['end'])
                 o = make_leaf(fcd['offsets']); sc = make_leaf(fcd['stop_colors'])
@@ -477,7 +477,7 @@ class RenderFunction(torch.autograd.Function):
                 new_sg['fill_color_type'] = fct
                 new_sg['fill_color_data'] = {'begin': b, 'end': e, 'offsets': o, 'stop_colors': sc}
                 arg_idx += 4
-            elif fct == torch_render.ColorType.RADIAL_GRADIENT:
+            elif fct == torch_render.ColorType.radial_gradient:
                 fcd = sg['fill_color_data']
                 ct = make_leaf(fcd['center']); rad = make_leaf(fcd['radius'])
                 o = make_leaf(fcd['offsets']); sc = make_leaf(fcd['stop_colors'])
@@ -493,14 +493,14 @@ class RenderFunction(torch.autograd.Function):
             # Stroke color
             sct = sg.get('stroke_color_type')
             arg_idx += 1  # stroke_color_type
-            if sct == torch_render.ColorType.CONSTANT:
+            if sct == torch_render.ColorType.constant:
                 sc_tensor = make_leaf(sg['stroke_color_data'])
                 leaf_tensors.append(sc_tensor)
                 arg_index_for_leaf.append(arg_idx)
                 new_sg['stroke_color_type'] = sct
                 new_sg['stroke_color_data'] = sc_tensor
                 arg_idx += 1
-            elif sct == torch_render.ColorType.LINEAR_GRADIENT:
+            elif sct == torch_render.ColorType.linear_gradient:
                 scd = sg['stroke_color_data']
                 b = make_leaf(scd['begin']); e = make_leaf(scd['end'])
                 o = make_leaf(scd['offsets']); sc = make_leaf(scd['stop_colors'])
@@ -509,7 +509,7 @@ class RenderFunction(torch.autograd.Function):
                 new_sg['stroke_color_type'] = sct
                 new_sg['stroke_color_data'] = {'begin': b, 'end': e, 'offsets': o, 'stop_colors': sc}
                 arg_idx += 4
-            elif sct == torch_render.ColorType.RADIAL_GRADIENT:
+            elif sct == torch_render.ColorType.radial_gradient:
                 scd = sg['stroke_color_data']
                 ct = make_leaf(scd['center']); rad = make_leaf(scd['radius'])
                 o = make_leaf(scd['offsets']); sc = make_leaf(scd['stop_colors'])
@@ -633,18 +633,18 @@ def _convert_filter_type(ft):
     try:
         import diffvg
         if ft == diffvg.FilterType.box:
-            return torch_render.FilterType.BOX
+            return torch_render.FilterType.box
         elif ft == diffvg.FilterType.tent:
-            return torch_render.FilterType.TENT
+            return torch_render.FilterType.tent
         elif ft == diffvg.FilterType.parabolic:
-            return torch_render.FilterType.RADIAL_PARABOLIC
+            return torch_render.FilterType.parabolic
         elif ft == diffvg.FilterType.hann:
-            return torch_render.FilterType.HANN
+            return torch_render.FilterType.hann
     except (ImportError, AttributeError):
         pass
     # Default mappings by integer value
-    mapping = {0: torch_render.FilterType.BOX,
-               1: torch_render.FilterType.TENT,
-               2: torch_render.FilterType.RADIAL_PARABOLIC,
-               3: torch_render.FilterType.HANN}
-    return mapping.get(int(ft), torch_render.FilterType.BOX)
+    mapping = {0: torch_render.FilterType.box,
+               1: torch_render.FilterType.tent,
+               2: torch_render.FilterType.parabolic,
+               3: torch_render.FilterType.hann}
+    return mapping.get(int(ft), torch_render.FilterType.box)

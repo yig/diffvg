@@ -15,21 +15,21 @@ from enum import IntEnum
 # ============================================================================
 
 class ShapeType(IntEnum):
-    CIRCLE = 0
-    ELLIPSE = 1
-    PATH = 2
-    RECT = 3
+    circle = 0
+    ellipse = 1
+    path = 2
+    rect = 3
 
 class ColorType(IntEnum):
-    CONSTANT = 0
-    LINEAR_GRADIENT = 1
-    RADIAL_GRADIENT = 2
+    constant = 0
+    linear_gradient = 1
+    radial_gradient = 2
 
 class FilterType(IntEnum):
-    BOX = 0
-    TENT = 1
-    RADIAL_PARABOLIC = 2
-    HANN = 3
+    box = 0
+    tent = 1
+    parabolic = 2 # radial parabolic
+    hann = 3 # Hann
 
 
 # ============================================================================
@@ -92,7 +92,8 @@ def solve_cubic(a, b, c, d):
         num_roots: integer tensor of shape [...]
     """
     device = a.device
-    dtype = torch.float64  # Use double precision for numerical stability
+    # Use double precision for numerical stability. Unfortunately, MPS doesn't support it.
+    dtype = torch.float32 if device.type == 'mps' else torch.float64
     a = a.to(dtype)
     b = b.to(dtype)
     c = c.to(dtype)
@@ -332,20 +333,20 @@ def compute_winding_number(shape_type, shape_data, pts):
 
     Returns: [N] integer winding numbers
     """
-    if shape_type == ShapeType.CIRCLE:
+    if shape_type == ShapeType.circle:
         center = shape_data['center']
         radius = shape_data['radius']
         dist_sq = ((pts - center.unsqueeze(0)) ** 2).sum(dim=-1)
         return (dist_sq < radius * radius).to(torch.int32)
 
-    elif shape_type == ShapeType.ELLIPSE:
+    elif shape_type == ShapeType.ellipse:
         center = shape_data['center']
         radius = shape_data['radius']
         diff = pts - center.unsqueeze(0)
         val = (diff[:, 0] / radius[0]) ** 2 + (diff[:, 1] / radius[1]) ** 2
         return (val < 1.0).to(torch.int32)
 
-    elif shape_type == ShapeType.PATH:
+    elif shape_type == ShapeType.path:
         points = shape_data['points']
         ncp = shape_data['num_control_points']
         is_closed = shape_data['is_closed']
@@ -362,7 +363,7 @@ def compute_winding_number(shape_type, shape_data, pts):
                 points[i0], points[i1], points[i2], points[i3], pts)
         return winding
 
-    elif shape_type == ShapeType.RECT:
+    elif shape_type == ShapeType.rect:
         p_min = shape_data['p_min']
         p_max = shape_data['p_max']
         inside = ((pts[:, 0] > p_min[0]) & (pts[:, 0] < p_max[0]) &
@@ -530,7 +531,7 @@ def compute_distance(shape_type, shape_data, pts, stroke_width=0.0):
     N = pts.shape[0]
     device = pts.device
 
-    if shape_type == ShapeType.CIRCLE:
+    if shape_type == ShapeType.circle:
         center = shape_data['center']
         radius = shape_data['radius']
         diff = pts - center.unsqueeze(0)
@@ -541,7 +542,7 @@ def compute_distance(shape_type, shape_data, pts, stroke_width=0.0):
         dist = (dist_to_center - radius).abs()
         return cp, dist, torch.ones(N, device=device, dtype=torch.bool)
 
-    elif shape_type == ShapeType.ELLIPSE:
+    elif shape_type == ShapeType.ellipse:
         # Approximate: treat as circle with average radius
         center = shape_data['center']
         radius = shape_data['radius']
@@ -554,7 +555,7 @@ def compute_distance(shape_type, shape_data, pts, stroke_width=0.0):
         dist = torch.sqrt(((pts - cp)**2).sum(dim=-1) + 1e-20)
         return cp, dist, torch.ones(N, device=device, dtype=torch.bool)
 
-    elif shape_type == ShapeType.PATH:
+    elif shape_type == ShapeType.path:
         points = shape_data['points']
         ncp = shape_data['num_control_points']
         is_closed = shape_data['is_closed']
@@ -589,7 +590,7 @@ def compute_distance(shape_type, shape_data, pts, stroke_width=0.0):
 
         return best_cp, best_dist, found
 
-    elif shape_type == ShapeType.RECT:
+    elif shape_type == ShapeType.rect:
         p_min = shape_data['p_min']
         p_max = shape_data['p_max']
         # Distance to each edge
@@ -618,13 +619,13 @@ def within_distance_shape(shape_type, shape_data, pts, stroke_width):
 
     Returns: [N] boolean mask
     """
-    if shape_type == ShapeType.CIRCLE:
+    if shape_type == ShapeType.circle:
         center = shape_data['center']
         radius = shape_data['radius']
         dist = torch.sqrt(((pts - center.unsqueeze(0))**2).sum(dim=-1) + 1e-20)
         return (dist - radius).abs() < stroke_width
 
-    elif shape_type == ShapeType.ELLIPSE:
+    elif shape_type == ShapeType.ellipse:
         center = shape_data['center']
         radius = shape_data['radius']
         norm_diff = (pts - center.unsqueeze(0)) / radius.unsqueeze(0)
@@ -633,11 +634,11 @@ def within_distance_shape(shape_type, shape_data, pts, stroke_width):
         avg_r = (radius[0] + radius[1]) / 2
         return (norm_dist * avg_r - avg_r).abs() < stroke_width
 
-    elif shape_type == ShapeType.PATH:
+    elif shape_type == ShapeType.path:
         _, dist, found = compute_distance(shape_type, shape_data, pts)
         return found & (dist < stroke_width)
 
-    elif shape_type == ShapeType.RECT:
+    elif shape_type == ShapeType.rect:
         _, dist, _ = compute_distance(shape_type, shape_data, pts)
         return dist < stroke_width
 
@@ -662,11 +663,11 @@ def sample_color(color_type, color_data, pts):
     N = pts.shape[0]
     device = pts.device
 
-    if color_type == ColorType.CONSTANT:
+    if color_type == ColorType.constant:
         color = color_data  # [4] tensor
         return color.unsqueeze(0).expand(N, 4)
 
-    elif color_type == ColorType.LINEAR_GRADIENT:
+    elif color_type == ColorType.linear_gradient:
         begin = color_data['begin']  # [2]
         end = color_data['end']      # [2]
         offsets = color_data['offsets']  # [S]
@@ -679,7 +680,7 @@ def sample_color(color_type, color_data, pts):
 
         return _interpolate_stops(t, offsets, stop_colors)
 
-    elif color_type == ColorType.RADIAL_GRADIENT:
+    elif color_type == ColorType.radial_gradient:
         center = color_data['center']  # [2]
         radius = color_data['radius']  # [2]
         offsets = color_data['offsets']  # [S]
@@ -739,13 +740,13 @@ def compute_filter_weight(filter_type, radius, dx, dy):
     """
     outside = (dx.abs() > radius) | (dy.abs() > radius)
 
-    if filter_type == FilterType.BOX:
+    if filter_type == FilterType.box:
         w = torch.ones_like(dx) / (2 * radius) ** 2
-    elif filter_type == FilterType.TENT:
+    elif filter_type == FilterType.tent:
         w = (radius - dx.abs()) * (radius - dy.abs()) / radius ** 4
-    elif filter_type == FilterType.RADIAL_PARABOLIC:
+    elif filter_type == FilterType.parabolic: # radial parabolic
         w = (4.0/3.0) * (1 - (dx/radius)**2) * (4.0/3.0) * (1 - (dy/radius)**2)
-    elif filter_type == FilterType.HANN:
+    elif filter_type == FilterType.hann: # Hann
         ndx = dx / (2*radius) + 0.5
         ndy = dy / (2*radius) + 0.5
         w = (0.5 * (1 - torch.cos(2*math.pi*ndx)) *
@@ -851,7 +852,7 @@ def sample_boundary_point(shape_type, shape_data, t_val, stroke_width=0.0,
     """
     device = next(iter(shape_data.values())).device if isinstance(shape_data, dict) else shape_data.device
 
-    if shape_type == ShapeType.CIRCLE:
+    if shape_type == ShapeType.circle:
         center = shape_data['center']
         radius = shape_data['radius']
         angle = 2 * math.pi * t_val
@@ -866,7 +867,7 @@ def sample_boundary_point(shape_type, shape_data, t_val, stroke_width=0.0,
                 normal = -normal
         return pt, normal, pdf
 
-    elif shape_type == ShapeType.ELLIPSE:
+    elif shape_type == ShapeType.ellipse:
         center = shape_data['center']
         r = shape_data['radius']
         angle = 2 * math.pi * t_val
@@ -884,7 +885,7 @@ def sample_boundary_point(shape_type, shape_data, t_val, stroke_width=0.0,
                 normal = -normal
         return pt, normal, pdf
 
-    elif shape_type == ShapeType.PATH:
+    elif shape_type == ShapeType.path:
         points = shape_data['points']
         ncp = shape_data['num_control_points']
         is_closed = shape_data['is_closed']
@@ -964,7 +965,7 @@ def sample_boundary_point(shape_type, shape_data, t_val, stroke_width=0.0,
 
         return pt, normal, pdf
 
-    elif shape_type == ShapeType.RECT:
+    elif shape_type == ShapeType.rect:
         p_min = shape_data['p_min']
         p_max = shape_data['p_max']
         w = p_max[0] - p_min[0]
@@ -1306,17 +1307,17 @@ def compute_boundary_gradients(width, height, num_samples_x, num_samples_y, seed
             sid = shape_id.item() if isinstance(shape_id, torch.Tensor) else shape_id
             shape_type, shape_data = shapes[sid]
             # Estimate boundary length
-            if shape_type == ShapeType.CIRCLE:
+            if shape_type == ShapeType.circle:
                 length = 2 * math.pi * shape_data['radius'].item()
-            elif shape_type == ShapeType.ELLIPSE:
+            elif shape_type == ShapeType.ellipse:
                 r = shape_data['radius']
                 length = 2 * math.pi * math.sqrt((r[0].item()**2 + r[1].item()**2) / 2)
-            elif shape_type == ShapeType.PATH:
+            elif shape_type == ShapeType.path:
                 lengths = _path_segment_lengths(
                     shape_data['points'], shape_data['num_control_points'],
                     shape_data['is_closed'])
                 length = lengths.sum().item()
-            elif shape_type == ShapeType.RECT:
+            elif shape_type == ShapeType.rect:
                 p_min = shape_data['p_min']
                 p_max = shape_data['p_max']
                 length = 2 * ((p_max[0]-p_min[0]).item() + (p_max[1]-p_min[1]).item())
@@ -1568,7 +1569,7 @@ def convert_shapes(pydiffvg_shapes, device):
                 'stroke_width': shape.stroke_width.to(device) if isinstance(shape.stroke_width, torch.Tensor)
                                else torch.tensor(float(shape.stroke_width), device=device),
             }
-            shapes.append((ShapeType.CIRCLE, data))
+            shapes.append((ShapeType.circle, data))
         elif isinstance(shape, pydiffvg.Ellipse):
             data = {
                 'center': shape.center.to(device),
@@ -1576,7 +1577,7 @@ def convert_shapes(pydiffvg_shapes, device):
                 'stroke_width': shape.stroke_width.to(device) if isinstance(shape.stroke_width, torch.Tensor)
                                else torch.tensor(float(shape.stroke_width), device=device),
             }
-            shapes.append((ShapeType.ELLIPSE, data))
+            shapes.append((ShapeType.ellipse, data))
         elif isinstance(shape, (pydiffvg.Path, pydiffvg.Polygon)):
             if isinstance(shape, pydiffvg.Polygon):
                 if shape.is_closed:
@@ -1597,7 +1598,7 @@ def convert_shapes(pydiffvg_shapes, device):
             if hasattr(shape, 'stroke_width') and isinstance(shape.stroke_width, torch.Tensor) and \
                len(shape.stroke_width.shape) > 0 and shape.stroke_width.shape[0] > 1:
                 data['thickness'] = shape.stroke_width.to(device)
-            shapes.append((ShapeType.PATH, data))
+            shapes.append((ShapeType.path, data))
         elif isinstance(shape, pydiffvg.Rect):
             data = {
                 'p_min': shape.p_min.to(device),
@@ -1605,7 +1606,7 @@ def convert_shapes(pydiffvg_shapes, device):
                 'stroke_width': shape.stroke_width.to(device) if isinstance(shape.stroke_width, torch.Tensor)
                                else torch.tensor(float(shape.stroke_width), device=device),
             }
-            shapes.append((ShapeType.RECT, data))
+            shapes.append((ShapeType.rect, data))
     return shapes
 
 
@@ -1626,10 +1627,10 @@ def convert_shape_groups(pydiffvg_groups, device):
             group['fill_color_type'] = None
             group['fill_color_data'] = None
         elif isinstance(sg.fill_color, torch.Tensor):
-            group['fill_color_type'] = ColorType.CONSTANT
+            group['fill_color_type'] = ColorType.constant
             group['fill_color_data'] = sg.fill_color.to(device)
         elif isinstance(sg.fill_color, pydiffvg.LinearGradient):
-            group['fill_color_type'] = ColorType.LINEAR_GRADIENT
+            group['fill_color_type'] = ColorType.linear_gradient
             group['fill_color_data'] = {
                 'begin': sg.fill_color.begin.to(device),
                 'end': sg.fill_color.end.to(device),
@@ -1637,7 +1638,7 @@ def convert_shape_groups(pydiffvg_groups, device):
                 'stop_colors': sg.fill_color.stop_colors.to(device),
             }
         elif isinstance(sg.fill_color, pydiffvg.RadialGradient):
-            group['fill_color_type'] = ColorType.RADIAL_GRADIENT
+            group['fill_color_type'] = ColorType.radial_gradient
             group['fill_color_data'] = {
                 'center': sg.fill_color.center.to(device),
                 'radius': sg.fill_color.radius.to(device),
@@ -1650,10 +1651,10 @@ def convert_shape_groups(pydiffvg_groups, device):
             group['stroke_color_type'] = None
             group['stroke_color_data'] = None
         elif isinstance(sg.stroke_color, torch.Tensor):
-            group['stroke_color_type'] = ColorType.CONSTANT
+            group['stroke_color_type'] = ColorType.constant
             group['stroke_color_data'] = sg.stroke_color.to(device)
         elif isinstance(sg.stroke_color, pydiffvg.LinearGradient):
-            group['stroke_color_type'] = ColorType.LINEAR_GRADIENT
+            group['stroke_color_type'] = ColorType.linear_gradient
             group['stroke_color_data'] = {
                 'begin': sg.stroke_color.begin.to(device),
                 'end': sg.stroke_color.end.to(device),
@@ -1661,7 +1662,7 @@ def convert_shape_groups(pydiffvg_groups, device):
                 'stop_colors': sg.stroke_color.stop_colors.to(device),
             }
         elif isinstance(sg.stroke_color, pydiffvg.RadialGradient):
-            group['stroke_color_type'] = ColorType.RADIAL_GRADIENT
+            group['stroke_color_type'] = ColorType.radial_gradient
             group['stroke_color_data'] = {
                 'center': sg.stroke_color.center.to(device),
                 'radius': sg.stroke_color.radius.to(device),

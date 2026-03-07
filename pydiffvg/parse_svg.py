@@ -1,10 +1,6 @@
 import torch
 import xml.etree.ElementTree as etree
 import numpy as np
-try:
-    import diffvg
-except ImportError:
-    pass
 import os
 import pydiffvg
 import svgpathtools

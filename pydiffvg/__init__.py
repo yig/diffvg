@@ -7,3 +7,4 @@ from .parse_svg import *
 from .color import *
 from .optimize_svg import *
 from .save_svg import *
+from .torch_render import *
