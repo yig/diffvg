@@ -9,7 +9,7 @@ print_timing = False
 
 def set_print_timing(val):
     global print_timing
-    print_timing = val
+    print_timing=val
 
 class OutputType(IntEnum):
     color = 1
@@ -21,21 +21,20 @@ class RenderFunction(torch.autograd.Function):
     API-compatible replacement for the C++/CUDA backend.
     Works on any PyTorch device (CPU, CUDA, MPS/Metal, ROCm).
     """
-
     @staticmethod
     def serialize_scene(canvas_width,
                         canvas_height,
                         shapes,
                         shape_groups,
-                        filter=None,
-                        output_type=OutputType.color,
-                        use_prefiltering=False,
-                        eval_positions=torch.tensor([])):
-        """Convert shapes/groups to a flat argument list for PyTorch autograd."""
-        if filter is None:
-            filter = pydiffvg.PixelFilter(type=torch_render.FilterType.box,
-                                          radius=torch.tensor(0.5))
-
+                        filter = pydiffvg.PixelFilter(type = torch_render.FilterType.box,
+                                                      radius = torch.tensor(0.5)),
+                        output_type = OutputType.color,
+                        use_prefiltering = False,
+                        eval_positions = torch.tensor([])):
+        """
+            Given a list of shapes, convert them to a linear list of argument,
+            so that we can use it in PyTorch.
+        """
         num_shapes = len(shapes)
         num_shape_groups = len(shape_groups)
         args = []
@@ -46,7 +45,6 @@ class RenderFunction(torch.autograd.Function):
         args.append(output_type)
         args.append(use_prefiltering)
         args.append(eval_positions)
-
         for shape in shapes:
             use_thickness = False
             if isinstance(shape, pydiffvg.Circle):
@@ -58,10 +56,13 @@ class RenderFunction(torch.autograd.Function):
                 args.append(shape.radius)
                 args.append(shape.center)
             elif isinstance(shape, pydiffvg.Path):
+                assert(shape.points.shape[1] == 2)
+                assert(torch.isfinite(shape.points).all())
                 args.append(torch_render.ShapeType.path)
                 args.append(shape.num_control_points.to(torch.int32))
                 args.append(shape.points)
                 if len(shape.stroke_width.shape) > 0 and shape.stroke_width.shape[0] > 1:
+                    assert(torch.isfinite(shape.stroke_width).all())
                     use_thickness = True
                     args.append(shape.stroke_width)
                 else:
@@ -69,6 +70,7 @@ class RenderFunction(torch.autograd.Function):
                 args.append(shape.is_closed)
                 args.append(getattr(shape, 'use_distance_approx', False))
             elif isinstance(shape, pydiffvg.Polygon):
+                assert(shape.points.shape[1] == 2)
                 args.append(torch_render.ShapeType.path)
                 if shape.is_closed:
                     args.append(torch.zeros(shape.points.shape[0], dtype=torch.int32))
@@ -77,7 +79,7 @@ class RenderFunction(torch.autograd.Function):
                 args.append(shape.points)
                 args.append(None)
                 args.append(shape.is_closed)
-                args.append(False)
+                args.append(False) # use_distance_approx
             elif isinstance(shape, pydiffvg.Rect):
                 args.append(torch_render.ShapeType.rect)
                 args.append(shape.p_min)
@@ -112,6 +114,7 @@ class RenderFunction(torch.autograd.Function):
                 args.append(shape_group.fill_color.stop_colors)
 
             if shape_group.fill_color is not None:
+                # go through the underlying shapes and check if they are all closed
                 for shape_id in shape_group.shape_ids:
                     if isinstance(shapes[shape_id], pydiffvg.Path):
                         if not shapes[shape_id].is_closed:
@@ -137,6 +140,7 @@ class RenderFunction(torch.autograd.Function):
                 args.append(shape_group.stroke_color.offsets)
                 args.append(shape_group.stroke_color.stop_colors)
             args.append(shape_group.use_even_odd_rule)
+            # Transformation
             args.append(shape_group.shape_to_canvas.contiguous())
         args.append(filter.type)
         args.append(filter.radius if isinstance(filter.radius, torch.Tensor) else torch.tensor(float(filter.radius)))
@@ -364,6 +368,7 @@ class RenderFunction(torch.autograd.Function):
     def backward(ctx, grad_img):
         if not grad_img.is_contiguous():
             grad_img = grad_img.contiguous()
+        assert(torch.isfinite(grad_img).all())
 
         device = ctx.device
         old_shapes = ctx.shapes
