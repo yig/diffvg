@@ -1,6 +1,9 @@
 [build-system]
-requires = ["scikit-build-core>=0.10"]
-build-backend = "scikit_build_core.build"
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["pydiffvg"]
 
 [project]
 name = "diffvg"
@@ -21,7 +24,3 @@ dependencies = [
     "matplotlib",
     "seaborn",
 ]
-
-[tool.scikit-build]
-cmake.build-type = "Release"
-wheel.packages = ["pydiffvg"]
