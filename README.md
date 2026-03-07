@@ -19,12 +19,10 @@ diffvg is a differentiable rasterizer for 2D vector graphics. See the webpage fo
 # Install
 
 ```
-pip install "git+https://github.com/yig/diffvg"
+pip install "git+https://github.com/yig/diffvg@pure-pytorch"
 ```
 
 You can also check it out and run `pip install .`
-
-CMake will auto-detect CUDA support support via `find_package(CUDA)`. You can override this by setting the environment variable `DIFFVG_CUDA`.
 
 The demo scripts call `ffmpeg` on the command line to create movies from the optimization frames. You can install ffmpeg via:
 
