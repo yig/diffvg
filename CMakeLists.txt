@@ -23,8 +23,9 @@ if(DEFINED ENV{DIFFVG_CUDA})
         set(DIFFVG_CUDA OFF CACHE BOOL "Build diffvg with GPU code path?")
     endif()
 else()
-    find_package(CUDA QUIET)
-    if(CUDA_FOUND)
+    include(CheckLanguage)
+    check_language(CUDA)
+    if(CMAKE_CUDA_COMPILER)
         set(DIFFVG_CUDA ON CACHE BOOL "Build diffvg with GPU code path?")
     else()
         set(DIFFVG_CUDA OFF CACHE BOOL "Build diffvg with GPU code path?")
@@ -33,13 +34,8 @@ endif()
 
 if(DIFFVG_CUDA)
     message(STATUS "Build with CUDA support")
-    find_package(CUDA 10 REQUIRED)
-    set(CMAKE_CUDA_STANDARD 11)
-    if(NOT WIN32)
-        # Hack: for some reason the line above doesn't work on some Linux systems.
-        set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11")
-        #set(CUDA_NVCC_FLAGS_DEBUG "-g -G")
-    endif()
+    enable_language(CUDA)
+    set(CMAKE_CUDA_STANDARD 17)
 else()
     FetchContent_Declare(
       thrust
@@ -91,16 +87,10 @@ set(SRCS atomic.h
          shape.cpp)
 
 if(DIFFVG_CUDA)
-    add_compile_definitions(COMPILE_WITH_CUDA)
-    set_source_files_properties(
-        diffvg.cpp
-        scene.cpp
-        PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT OBJ)
-
-    cuda_add_library(diffvg MODULE ${SRCS})
-else()
-    add_library(diffvg MODULE ${SRCS})
+    set_source_files_properties(diffvg.cpp scene.cpp PROPERTIES LANGUAGE CUDA)
 endif()
+
+add_library(diffvg MODULE ${SRCS})
 
 target_link_libraries(diffvg PUBLIC pybind11::module)
 
